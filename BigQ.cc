@@ -2,10 +2,7 @@
 
 
 
-//Okay, talking to myself time.
-//I have 2 records and an OrderMaker, which, given two records, will tell me (through 0's and 1's) which goes where
-//As per advice of those further along, I'm going to attempt to get this to work with std::sort.
-//So, I want a struct that'll act as a sorter, so when I give it a OrderMaker it'll be able to be used by std::sort.
+//This struct acts as a sorter for when I use std::sort. Means I should be very efficient with my sorting. Or something?
 struct record_sorter {
 	OrderMaker sorter;
   //Need a function that will act as constructor
