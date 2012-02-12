@@ -13,6 +13,11 @@ using namespace std;
 
 class BigQ {
 
+	File f; //Used to write stuff out to file
+	Pipe *input; //Input pipe, used in thread
+	Pipe *output; //Output pipe, used in thread
+
+
 public:
 
 	BigQ (Pipe &in, Pipe &out, OrderMaker &sortorder, int runlen);

@@ -31,10 +31,12 @@ BigQ :: BigQ (Pipe &in, Pipe &out, OrderMaker &sortorder, int runlen)
 	//vector runs<vector<Record>; //Okay, this is the collection of runs.
 	Record temp; //Have to have another temp variable for when I'm moving records from the page to the vector
 	int runPages = 0; //Number of pages in our current run. If it ever matches runlen, we stop the reading in to sort and output the sorted records to the pipe
-	File f; //This is the nice file I will be using to write stuff out to temp files with.
+	//File f; //This is the nice file I will be using to write stuff out to temp files with.
 
+	bool extra = false;
 	while(in.Remove(&readin) == 1) //readin now contains a record. Where to store it? A page!
 	{
+		extra = true;
 		if(p.Append(&readin) == 0) //Okay, so now a problem: Append can fail. So we need to add handling.
 		{
 			//Now, we've got a full page, what do we put it in? Vector it in, captain.
@@ -57,6 +59,7 @@ BigQ :: BigQ (Pipe &in, Pipe &out, OrderMaker &sortorder, int runlen)
 		}
 		
 	}
+	
 
 	//We still might have a page of records (if the number of records % size of page = 0, but number of records % runlen*pageSize != 0, or something)
 	//So we need to check that, and sort/stuff our vector
