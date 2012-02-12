@@ -5,6 +5,9 @@
 #include "Pipe.h"
 #include "File.h"
 #include "Record.h"
+#include "ComparisonEngine.h"
+#include <vector>
+#include <algorithm>
 
 using namespace std;
 
@@ -14,6 +17,7 @@ public:
 
 	BigQ (Pipe &in, Pipe &out, OrderMaker &sortorder, int runlen);
 	~BigQ ();
+	void FirstPhaseSort(vector<Record *> &sort, OrderMaker &order);
 };
 
 #endif

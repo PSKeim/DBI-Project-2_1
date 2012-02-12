@@ -1,45 +1,67 @@
 #include "BigQ.h"
 
+
+
+//Okay, talking to myself time.
+//I have 2 records and an OrderMaker, which, given two records, will tell me (through 0's and 1's) which goes where
+//As per advice of those further along, I'm going to attempt to get this to work with std::sort.
+//So, I want a struct that'll act as a sorter, so when I give it a OrderMaker it'll be able to be used by std::sort.
+struct record_sorter {
+	OrderMaker sorter;
+  //Need a function that will act as constructor
+ 	record_sorter(OrderMaker &sortorder)
+ 	{
+		sorter = sortorder;
+	}
+  //Next, the function that works as the sort function
+  	bool operator() (Record rec1, Record rec2)
+	{
+		ComparisonEngine cmp;
+		 if(cmp.Compare(&rec1, &rec2, &sorter) < 0) //Strict, so we only want to know if rec1 is LESS THAN rec2
+			return true;
+		return false;
+	}
+	
+};
 BigQ :: BigQ (Pipe &in, Pipe &out, OrderMaker &sortorder, int runlen) 
 {
 	// read data from in pipe sort them into runlen pages
 
 	//Assorted variable declaration. I'll sort them out into a more logical ordering sometime.
-	Page p = new Page; //Our holding page
-	Record readin = new Record; //Variable that works as a holder for when we're reading in from the pipe
-	Vector run = new Vector<Record *> //Okay, so, the "run" is a group of records (not a page, because there can be more than PageLen number of records)
-	Vector runs = new Vector<Vector<Record *>>; //Okay, this is the collection of runs.
-	Record temp = new Record; //Have to have another temp variable for when I'm moving records from the page to the vector
+	Page p; //Our holding page
+	Record readin; //Variable that works as a holder for when we're reading in from the pipe
+	vector<Record> run; //Okay, so, the "run" is a group of (NOT POINTERS TO RECORDS BUT THE ACTUAL OBJECTS) records (not a page, because there can be more than PageLen number of records)
+	//vector runs<vector<Record>; //Okay, this is the collection of runs.
+	Record temp; //Have to have another temp variable for when I'm moving records from the page to the vector
 	int runPages = 0; //Number of pages in our current run. If it ever matches runlen, we stop the reading in to sort and output the sorted records to the pipe
-	File f = new File(); //This is the nice file I will be using to write stuff out to temp files with.
+	File f; //This is the nice file I will be using to write stuff out to temp files with.
 
-	while(in.Remove(&readin) == 1)
+	while(in.Remove(&readin) == 1) //readin now contains a record. Where to store it? A page!
 	{
-		//readin now contains a record. Where to store it? A page!
-		if(!p.Append(readin)) //Okay, so now a problem: Append can fail. So we need to add handling.
+		if(p.Append(&readin) == 0) //Okay, so now a problem: Append can fail. So we need to add handling.
 		{
 			//Now, we've got a full page, what do we put it in? Vector it in, captain.
 			while(p.GetFirst(&temp))
 			{
 				//Shove the records from the page into the run vector.
-				//However, what if the run vector gets to be run size?
-				//In that case, we need to sort it, push the records (in order) into the output pipe
-				//Once that's done, we can take the newly empty vector, and start the process over again until the pipe is empty.
+				run.push_back(temp);
 			}
 			//Now the page is empty, we increment the number of pages that are in our current run
 			runPages++;
 			//And check to see if we've read in a total run
-			if(runPages == runLen)
+			if(runPages == runlen)
 			{
-				//If we have, then we must sort the current run vector
-				//After I've sorted the current run vector, I need to write it out to a file
-				
-			}
+				cout << "I am beginning to sort a run." << endl;
+				std::sort(run.begin(),run.end(), record_sorter(sortorder)); //Sort the run
+				cout << "I have sorted a run." << endl;
+				//And now we need to write it out to file
+			}	
+			p.Append(&readin);
 		}
 		
 	}
 
-	//We still might have a page of records (saf, if the number of records % size of page = 0, but number of records % runlen*pageSize != 0, or something)
+	//We still might have a page of records (if the number of records % size of page = 0, but number of records % runlen*pageSize != 0, or something)
 	//So we need to check that, and sort/stuff our vector
 	//Worry about that later. Keep thinking about how this is supposed to be set up
 
@@ -57,4 +79,11 @@ BigQ :: BigQ (Pipe &in, Pipe &out, OrderMaker &sortorder, int runlen)
 }
 
 BigQ::~BigQ () {
+}
+
+//The purpose here is to take a vector of records and produce a sorted vector in return
+void BigQ::FirstPhaseSort (vector<Record *> &sort, OrderMaker &order){
+  
+
+
 }
