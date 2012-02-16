@@ -16,13 +16,14 @@ class BigQ {
 	File f; //Used to write stuff out to file
 	Pipe *input; //Input pipe, used in thread
 	Pipe *output; //Output pipe, used in thread
-
+	OrderMaker order;
+	int runlen;
 
 public:
 
 	BigQ (Pipe &in, Pipe &out, OrderMaker &sortorder, int runlen);
 	~BigQ ();
-	void FirstPhaseSort(vector<Record *> &sort, OrderMaker &order);
+	void FirstPhase();
 };
 
 #endif
