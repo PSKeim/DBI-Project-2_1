@@ -28,9 +28,14 @@ BigQ :: BigQ (Pipe &in, Pipe &out, OrderMaker &sortorder, int runlen)
 	this->output = &out;
 	this->order = sortorder;
 	this->runlen = runlen;
-	//PQueue, or do a linear scan over the heads of the pages and see which ones are best suited?
-	//Speaking of which, still not sure of a good way to find the first record of a page that doesn't also remove it from the page
- 
+	
+	
+	
+	//Now that all the sorted runs are set up, we can do the initial sort
+	
+	FirstPhase();
+	//This has all the records writen out to a file.
+	
  	// into the out pipe
 
     // finally shut down the out pipe
@@ -130,5 +135,6 @@ void BigQ::FirstPhase(){
 	offset++;
 	p.EmptyItOut();//Empty out the page, since we're about to add a new record to it.
 	
+	f.Close();
 	//So at the end of this, f is our link to an opened file with all our runs in it. Now we need to enter phase 2
 }
