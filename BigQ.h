@@ -18,6 +18,7 @@ class BigQ {
 	Pipe *output; //Output pipe, used in thread
 	OrderMaker order;
 	int runlen;
+	vector<int> offsets; //Vector that holds the offsets to the runs.
 
 public:
 

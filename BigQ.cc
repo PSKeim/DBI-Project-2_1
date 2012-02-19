@@ -73,6 +73,7 @@ void BigQ::FirstPhase(){
 	//Variables for writing out to file
 	f.Open(0,"temprecs");
 	int offset = 0; //Offset starts at 0 because File automaticaly thinks "offset+1" since first page is empty.
+	offsets.pushback(offset); //The first offset starts at 0, for run 1.
 	int n = 0; 
 
 	while(input->Remove(&readin) == 1){ //We have read a record in from the pipe
@@ -112,9 +113,15 @@ void BigQ::FirstPhase(){
 						p.Append(run[n]);
 					}
 				}
-				//uhm, now we might have a page with a bunch of records in it that aren't in the file.
+
+				//Now we add the last page of the run to the file, and increment the offset (which now represents 
 				f.AddPage(&p, offset);
-				offset++;
+				offset++;//Then we increment offset
+				
+				//Tracker and Offsets are used in Phase 2, to locate the different runs. (Run1 starts at 0, Run2 starts at Runlen (+- 1), etc
+				int tracker = offset;
+				offsets.push_back(tracker); //Offset right now will represent where the run ends (because Get/AddPage both increment by 1 when you go into them)
+						
 				p.EmptyItOut();//Empty out the page, since we're about to add a new record to it.
 			}
 			//No matter if we've written it out to file or anything, we still need to append the new record!
@@ -157,13 +164,53 @@ void BigQ::FirstPhase(){
 	//So at the end of this, f is our link to an opened file with all our runs in it. Now we need to enter phase 2
 }
 
+//Okay, for second phase, we know that the file now contains a series of pages. 
+/**
+Strategy time:
+
+SO, when making my run, should I count the number of pages I write to file, and then push back, and remember that offset? Done.
+
+I have a File ("temprecs", name to be changed later) that contains a bunch of runs (that may be a little more or less than runlen pages). 
+I have a Vector that contains the location of the different runs in the file (page offsets)
+
+The number of runs in a file is equal to the number of offsets in that vector. We can create an array of pages (size efficiency?), which we fill from the file.
+When a page is exhausted, we know where to fill it from in the vector
+
+Likewise, have an array of n records. Do a linear scan over it, pick the best record, and output it to pipe.
+
+When item x is chosen from the record, we go to page x in the array, and call GetFirst. If it returns 0, we go to the offset vector, and check for the proper offset.
+
+This'll work (I'm 99% sure that this is the same method Nick is using), but requires a "fuck you" amount of book keeping. 
+
+So, ideas on making this modular, or another way of simplifying it? Something like "GetNextRunPage" or something would be nice. Still requires book keeping.
+
+
+Data structures: 
+
+Page pageArray [offsets.size()];
+Record recs [offsets.Size()]; 
+int offUpdate[offsets.size()](); //This initialized offUpdate to all 0's.
+int skip[offsets.size()](); //Tells me which runs have finished 
+Offsets is already declared.
+
+So, first step is to fill the page array from File using GetPage and iterating over Offsets (all offset updates will be 0, because we haven't finished a page)
+
+Once we've done this, we fill the record array using GetFirst from each page in the Page Array. (We also increase the offUpdate of each run to 1 at this point)
+
+Now we sit and keep iterating over the Recs array, finding the Record with the smallest value. We note the index of the minimum record, write it out to file, and then refil the record from the page.  
+
+When a page empties, we have to refill it. 
+
+**/
 void BigQ::SecondPhase(){
 	f.Open(1,"temprecs");
-	
 	Page p;
 	Record temp;
-	//Get ALL DER PAGES!
+
+
 	int numP = f.GetLength();
+
+
 	for(int i = 0; i < numP-1; i++){
 		f.GetPage(&p,i);
 		while(p.GetFirst(&temp)){
