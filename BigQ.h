@@ -24,6 +24,8 @@ public:
 	BigQ (Pipe &in, Pipe &out, OrderMaker &sortorder, int runlen);
 	~BigQ ();
 	void FirstPhase();
+	void SecondPhase();
+
 };
 
 #endif

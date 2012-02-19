@@ -1,5 +1,5 @@
 
-CC = g++ -O2 -Wno-deprecated
+CC = g++ -O2 -Wno-deprecated -ggdb3
 
 tag = -i
 
@@ -14,34 +14,34 @@ a1test.out: Record.o Comparison.o ComparisonEngine.o Schema.o File.o DBFile.o Pi
 	$(CC) -o a1test.out Record.o Comparison.o ComparisonEngine.o Schema.o File.o DBFile.o Pipe.o y.tab.o lex.yy.o a1-test.o -lfl
 	
 test.o: test.cc
-	$(CC) -g -c test.cc
+	$(CC)  -c test.cc
 
 a1-test.o: a1-test.cc
-	$(CC) -g -c a1-test.cc
+	$(CC)  -c a1-test.cc
 
 Comparison.o: Comparison.cc
-	$(CC) -g -c Comparison.cc
+	$(CC)  -c Comparison.cc
 	
 ComparisonEngine.o: ComparisonEngine.cc
-	$(CC) -g -c ComparisonEngine.cc
+	$(CC)  -c ComparisonEngine.cc
 	
 Pipe.o: Pipe.cc
-	$(CC) -g -c Pipe.cc
+	$(CC)  -c Pipe.cc
 
 BigQ.o: BigQ.cc
-	$(CC) -g -c BigQ.cc
+	$(CC)  -c BigQ.cc
 
 DBFile.o: DBFile.cc
-	$(CC) -g -c DBFile.cc
+	$(CC)  -c DBFile.cc
 
 File.o: File.cc
-	$(CC) -g -c File.cc
+	$(CC)  -c File.cc
 
 Record.o: Record.cc
-	$(CC) -g -c Record.cc
+	$(CC)  -c Record.cc
 
 Schema.o: Schema.cc
-	$(CC) -g -c Schema.cc
+	$(CC)  -c Schema.cc
 	
 y.tab.o: Parser.y
 	yacc -d Parser.y
