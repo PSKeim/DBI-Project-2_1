@@ -44,7 +44,7 @@ BigQ :: BigQ (Pipe &in, Pipe &out, OrderMaker &sortorder, int runlen)
 	cout << "BigQ has exited First Phase." <<endl;
 	//This has all the records writen out to a file.
 	cout<< "BigQ is now entering Second Phase." <<endl;
-	SecondPhase();
+	SecondPhasev2();
 	cout << "BigQ has exited Second Phase." <<endl;
  	// into the out pipe
 
@@ -84,7 +84,7 @@ void BigQ::FirstPhase(){
 			while(p.GetFirst(&temp))
 			{
 				//cout << "Run capacity is: "<<run.capacity();
-				Record *vecRec;
+				Record *vecRec = new Record();
 				vecRec->Copy(&temp);
 				run.push_back(vecRec);
 			}
@@ -94,9 +94,9 @@ void BigQ::FirstPhase(){
 			{
 				//We've reached the number of pages allowed in a run, so we sort that shit.
 				
-				cout << "I am beginning to sort a run." << endl;
+				//cout << "I am beginning to sort a run." << endl;
 				std::sort(run.begin(),run.end(), record_sorter(this->order)); //Sort the run
-				cout << "I have sorted a run." << endl;
+				//cout << "I have sorted a run." << endl;
 				
 				
 				//And now we need to write it out to file	
@@ -117,7 +117,7 @@ void BigQ::FirstPhase(){
 				//Now we add the last page of the run to the file, and increment the offset (which now represents 
 				f.AddPage(&p, offset);
 				offset++;//Then we increment offset
-				
+				run.clear();
 				//Tracker and Offsets are used in Phase 2, to locate the different runs. (Run1 starts at 0, Run2 starts at Runlen (+- 1), etc
 				int tracker = offset;
 				offsets.push_back(tracker); //Offset right now will represent where the run ends (because Get/AddPage both increment by 1 when you go into them)
@@ -141,9 +141,10 @@ void BigQ::FirstPhase(){
 	std::sort(run.begin(),run.end(), record_sorter(this->order));
 	cout << "I have sorted the last run." << endl;
 	cout << "Run size is " << run.size() << endl;
+	
 	for(n = 0; n < run.size(); n++){
 		//cout << "N is: " << n << endl;
-		//cout << "Rec "<<n<<" is: " << rec[n] << endl;
+		cout << "Rec "<<n<<" is: " << run[n] << endl;
 		//output->Insert(run[n]);
 		if(p.Append(run[n]) == 0){
 			//Failure to append, meaning we have to add the page to file, then start over
@@ -159,6 +160,7 @@ void BigQ::FirstPhase(){
 	f.AddPage(&p, offset);
 	offset++;
 	p.EmptyItOut();//Empty out the page, since we're about to add a new record to it.
+	run.clear();
 	cout << " I wrote "<<offset <<" pages to file. " <<endl;
 	f.Close();
 	//So at the end of this, f is our link to an opened file with all our runs in it. Now we need to enter phase 2
@@ -206,7 +208,7 @@ When a page empties, we have to refill it. So, we grab the page from the file us
 void BigQ::SecondPhasev2(){
 	//Data Structures
 	int size = offsets.size();
-	Page pageArray [size];
+	Page* pageArray [size];
 	Record recs [size]; 
 	int offUpdate[size];
 	int skip[size]; 
@@ -216,25 +218,62 @@ void BigQ::SecondPhasev2(){
 
 	//Initialization 
 	for(int i = 0; i < size;i++){
-		f.GetPage(&pageArray[i],offsets[i]);
-		pageArray[i].GetFirst(&recs[i]);
-		offUpdate[i] = 0;
+		pageArray[i] = new Page();
+		f.GetPage(pageArray[i],offsets[i]);
+		pageArray[i]->GetFirst(&recs[i]);
+		offUpdate[i] = 1;
 		skip[i] = 0;
 	}
-	
+	cout << "Second phase is done initializing. Entering while loop." <<endl;
 	//Now we've got a page array full of run beginnings, a record array full of records, and the offset and skip arrays are set up. Kewl.
 	
 	//Now we need to iterate over the record array until we find the records we want.
 	int mindex;
-	ComparisonEngine cmp = new ComparisonEngine();
+	ComparisonEngine cmp;
 	while(true){
-		mindex = 0; //Start with guessing the min as the first bucket
-		for(int i = 1; i < size; i++){ //Scan over rec list to find minimum record
-			
+
+		mindex = -1; //Start with guessing the min as the first bucket
+		for(int i = 0; i < size; i++){ //Scan over rec list to find minimum record
+			//Skip the runs that are emptied
+			if(skip[i] == -1){
+				continue;
+			}
+			if(mindex == -1){
+				mindex = i;
+			}
+			else{
+				if(cmp.Compare(&recs[mindex],&recs[i],&order) < 0) mindex = i;
+			}
 		}
+
+		//Are we done yettttt?
+		if(mindex == -1){
+			cout << "Breaking from the while loop." << endl;
+			 break;
+		}
+		
+		//If not, we insert the record we found into the output pipe, and away we go!
+		cout << "Outputting record to Output pipe." << endl;
+		output->Insert(&recs[mindex]);
+		//At this point, we've found and inserted the minimum record into the output pipe
+
+		/*
+		Here's a tricky part. How do I do the page updates?
+		Well, we have the offsets vector, and so we can check that offsets + offUpdate < f.Length(), and offsets + offUpdate < offsets[mindex+1]
+		*/
+		if(!pageArray[mindex]->GetFirst(&recs[mindex])){ // The page we're attempting to read from is empty! =<
+			//We must replace it with a better page!
+			if(offsets[mindex]+offUpdate[mindex] < offsets.size() && offsets[mindex]+offUpdate[mindex] < offsets[mindex+1]){
+				f.GetPage(pageArray[mindex], offsets[mindex]+offUpdate[mindex]);
+				offUpdate[mindex]++;
+			}
+			else skip[mindex] = -1; //We've exhausted this run
+		}
+		
+
 	}
 	
-	f..Close();
+	f.Close();
 }
 
 
