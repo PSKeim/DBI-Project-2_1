@@ -44,7 +44,15 @@ BigQ :: BigQ (Pipe &in, Pipe &out, OrderMaker &sortorder, int runlen)
 	cout << "BigQ has exited First Phase." <<endl;
 	//This has all the records writen out to a file.
 	cout<< "BigQ is now entering Second Phase." <<endl;
-	SecondPhasev2();
+	/*if(offsets.size() == 1){
+		cout << "Only one run. Outputting to pipe." << endl;
+		SecondPhase();
+	}
+	else{
+		cout << "More than one run. Performing more complex second phase." << endl;
+		SecondPhasev2();
+	}*/
+	SecondPhase();
 	cout << "BigQ has exited Second Phase." <<endl;
  	// into the out pipe
 
@@ -53,6 +61,11 @@ BigQ :: BigQ (Pipe &in, Pipe &out, OrderMaker &sortorder, int runlen)
 }
 
 BigQ::~BigQ () {
+}
+
+void* BigQ::WorkThread(void *args){
+	char* tempFile = "/tmp/";
+
 }
 
 //This function holds the First Phase code of the project.
@@ -71,10 +84,11 @@ void BigQ::FirstPhase(){
 	int runPages = 0; //Number of pages in our current run. If it ever matches runlen, we stop the reading in to sort and output the sorted records to the pipe
 	
 	//Variables for writing out to file
-	f.Open(0,"temprecs");
+	f.Open(0,"/tmp/DBI/temprecs");
 	int offset = 0; //Offset starts at 0 because File automaticaly thinks "offset+1" since first page is empty.
 	offsets.push_back(offset); //The first offset starts at 0, for run 1.
 	int n = 0; 
+	int records = 1;
 
 	while(input->Remove(&readin) == 1){ //We have read a record in from the pipe
 		//We now attempt to append the record to the page
@@ -89,12 +103,12 @@ void BigQ::FirstPhase(){
 				run.push_back(vecRec);
 			}
 			runPages++; //Increment the number of run pages we currently have
-			
-			if(runPages == runlen-1)
+			//Page is now empty
+			if(runPages == runlen) //If we have a full run
 			{
 				//We've reached the number of pages allowed in a run, so we sort that shit.
 				
-				//cout << "I am beginning to sort a run." << endl;
+				cout << "I am beginning to sort a run." << endl;
 				std::sort(run.begin(),run.end(), record_sorter(this->order)); //Sort the run
 				//cout << "I have sorted a run." << endl;
 				
@@ -104,6 +118,7 @@ void BigQ::FirstPhase(){
 				//Which I am, apparently, then I need to not accidentally overwrite anything.
 				
 				for(n = 0; n < run.size(); n++){
+					//cout << "rec "<<records++<<" has been written out." << endl;
 					if(p.Append(run[n]) == 0){
 						//Failure to append, meaning we have to add the page to file, then start over
 						f.AddPage(&p, offset);
@@ -112,19 +127,21 @@ void BigQ::FirstPhase(){
 						p.EmptyItOut(); //Empty and restart the process
 						p.Append(run[n]);
 					}
+					delete run[n];
 				}
 
 				//Now we add the last page of the run to the file, and increment the offset (which now represents 
 				f.AddPage(&p, offset);
 				offset++;//Then we increment offset
 				run.clear();
-				//Tracker and Offsets are used in Phase 2, to locate the different runs. (Run1 starts at 0, Run2 starts at Runlen (+- 1), etc
+				//Tracker and Offsets are used in Phase 2, to locate the different runs.
 				int tracker = offset;
 				offsets.push_back(tracker); //Offset right now will represent where the run ends (because Get/AddPage both increment by 1 when you go into them)
-						
 				p.EmptyItOut();//Empty out the page, since we're about to add a new record to it.
+				runPages = 0;
 			}
 			//No matter if we've written it out to file or anything, we still need to append the new record!
+			//p.EmptyItOut();
 			p.Append(&readin);
 		}
 		
@@ -137,14 +154,14 @@ void BigQ::FirstPhase(){
 			vecRec->Copy(&temp);
 			run.push_back(vecRec);
 	}
-	cout << "I am sorting the last run." <<endl;
+	//cout << "I am sorting the last run." <<endl;
 	std::sort(run.begin(),run.end(), record_sorter(this->order));
-	cout << "I have sorted the last run." << endl;
-	cout << "Run size is " << run.size() << endl;
+	//cout << "I have sorted the last run." << endl;
+	//cout << "Run size is " << run.size() << endl;
 	
 	for(n = 0; n < run.size(); n++){
 		//cout << "N is: " << n << endl;
-		cout << "Rec "<<n<<" is: " << run[n] << endl;
+		//cout << "Rec "<<records++<<" has been written out."<<endl;
 		//output->Insert(run[n]);
 		if(p.Append(run[n]) == 0){
 			//Failure to append, meaning we have to add the page to file, then start over
@@ -154,7 +171,8 @@ void BigQ::FirstPhase(){
 			p.EmptyItOut(); //Empty and restart the process
 			p.Append(run[n]);
 		}
-		cout << "Appended record no. " << n <<endl;
+		delete run[n];
+		//cout << "Appended record no. " << n <<endl;
 	}
 	//uhm, now we might have a page with a bunch of records in it that aren't in the file.
 	f.AddPage(&p, offset);
@@ -208,14 +226,15 @@ When a page empties, we have to refill it. So, we grab the page from the file us
 void BigQ::SecondPhasev2(){
 	//Data Structures
 	int size = offsets.size();
+	offsets.push_back(0);
 	Page* pageArray [size];
 	Record recs [size]; 
 	int offUpdate[size];
 	int skip[size]; 
 	
 	//Open the file
-	f.Open(1,"temprecs");
-
+	f.Open(1,"/tmp/DBI/temprecs");
+	
 	//Initialization 
 	for(int i = 0; i < size;i++){
 		pageArray[i] = new Page();
@@ -242,7 +261,10 @@ void BigQ::SecondPhasev2(){
 				mindex = i;
 			}
 			else{
-				if(cmp.Compare(&recs[mindex],&recs[i],&order) < 0) mindex = i;
+				if(cmp.Compare(&recs[mindex],&recs[i],&order) < 0){
+				 	mindex = i;
+					cout << "New Mindex found" << endl;
+				}
 			}
 		}
 
@@ -253,7 +275,7 @@ void BigQ::SecondPhasev2(){
 		}
 		
 		//If not, we insert the record we found into the output pipe, and away we go!
-		cout << "Outputting record to Output pipe." << endl;
+		//cout << "Outputting record to Output pipe." << endl;
 		output->Insert(&recs[mindex]);
 		//At this point, we've found and inserted the minimum record into the output pipe
 
@@ -263,11 +285,17 @@ void BigQ::SecondPhasev2(){
 		*/
 		if(!pageArray[mindex]->GetFirst(&recs[mindex])){ // The page we're attempting to read from is empty! =<
 			//We must replace it with a better page!
+			cout << "Run "<<mindex<<" is set to offset "<<offsets[mindex]+offUpdate[mindex]<<endl;
+			cout << "Offsets size is "<<offsets.size() << endl;
+			cout << "Offsets at mindex + 1 is "<< offsets[mindex+1] << endl;
 			if(offsets[mindex]+offUpdate[mindex] < offsets.size() && offsets[mindex]+offUpdate[mindex] < offsets[mindex+1]){
 				f.GetPage(pageArray[mindex], offsets[mindex]+offUpdate[mindex]);
 				offUpdate[mindex]++;
 			}
-			else skip[mindex] = -1; //We've exhausted this run
+			else{
+				cout << "Exhausted run " << mindex << "." << endl;
+			 	skip[mindex] = -1; //We've exhausted this run
+			}
 		}
 		
 
@@ -278,18 +306,20 @@ void BigQ::SecondPhasev2(){
 
 
 void BigQ::SecondPhase(){
-	f.Open(1,"temprecs");
+	f.Open(1,"/tmp/DBI/temprecs");
 	Page p;
 	Record temp;
+	int pages = 0;
+	int numP = f.GetLength()-1;
 
-	int numP = f.GetLength();
 
-
-	for(int i = 0; i < numP-1; i++){
+	for(int i = 0; i < numP; i++){
 		f.GetPage(&p,i);
+		pages++;
 		while(p.GetFirst(&temp)){
 			output->Insert(&temp);
 		}
 	}
+	cout << "Number of pages written out was " << pages << endl;
 	f.Close();
 }

@@ -27,6 +27,7 @@ public:
 	void FirstPhase();
 	void SecondPhase();
 	void SecondPhasev2();
+	static void WorkThread(void* args);
 };
 
 #endif
