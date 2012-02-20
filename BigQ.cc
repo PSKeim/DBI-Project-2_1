@@ -73,7 +73,7 @@ void BigQ::FirstPhase(){
 	//Variables for writing out to file
 	f.Open(0,"temprecs");
 	int offset = 0; //Offset starts at 0 because File automaticaly thinks "offset+1" since first page is empty.
-	offsets.pushback(offset); //The first offset starts at 0, for run 1.
+	offsets.push_back(offset); //The first offset starts at 0, for run 1.
 	int n = 0; 
 
 	while(input->Remove(&readin) == 1){ //We have read a record in from the pipe
@@ -199,14 +199,49 @@ Once we've done this, we fill the record array using GetFirst from each page in 
 
 Now we sit and keep iterating over the Recs array, finding the Record with the smallest value. We note the index of the minimum record, write it out to file, and then refil the record from the page.  
 
-When a page empties, we have to refill it. 
+When a page empties, we have to refill it. So, we grab the page from the file using the Offsets[x] + offUpdate[x] as the offset. If Offsets[x] + offUpdate[x] = Offsets[x+1], we've exhausted a run, and thus, we just mark it in the skip array as finished, and then ignore that from then on.
 
 **/
+
+void BigQ::SecondPhasev2(){
+	//Data Structures
+	int size = offsets.size();
+	Page pageArray [size];
+	Record recs [size]; 
+	int offUpdate[size];
+	int skip[size]; 
+	
+	//Open the file
+	f.Open(1,"temprecs");
+
+	//Initialization 
+	for(int i = 0; i < size;i++){
+		f.GetPage(&pageArray[i],offsets[i]);
+		pageArray[i].GetFirst(&recs[i]);
+		offUpdate[i] = 0;
+		skip[i] = 0;
+	}
+	
+	//Now we've got a page array full of run beginnings, a record array full of records, and the offset and skip arrays are set up. Kewl.
+	
+	//Now we need to iterate over the record array until we find the records we want.
+	int mindex;
+	ComparisonEngine cmp = new ComparisonEngine();
+	while(true){
+		mindex = 0; //Start with guessing the min as the first bucket
+		for(int i = 1; i < size; i++){ //Scan over rec list to find minimum record
+			
+		}
+	}
+	
+	f..Close();
+}
+
+
 void BigQ::SecondPhase(){
 	f.Open(1,"temprecs");
 	Page p;
 	Record temp;
-
 
 	int numP = f.GetLength();
 

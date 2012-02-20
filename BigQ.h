@@ -26,7 +26,7 @@ public:
 	~BigQ ();
 	void FirstPhase();
 	void SecondPhase();
-
+	void SecondPhasev2();
 };
 
 #endif
