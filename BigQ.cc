@@ -245,6 +245,100 @@ When a page empties, we have to refill it. So, we grab the page from the file us
 **/
 
 void BigQ::SecondPhasev2(){
+	int size = offsets.size();
+	//offsets.push_back(0);
+	vector<Page *> pageArray;
+	pageArray.reserve(size);
+	vector<Record *> recs;
+	recs.reserve(size);
+	vector<int> offUpdate;
+	offUpdate.reserve(size);
+	vector<int> skip;
+	skip.reserve(size);
+	
+	//Initialization
+	for(int i = 0; i < size; i++){
+		//Push the first page of a run into the pageArray
+		Page *PTemp = new Page();
+		f.GetPage(PTemp,offsets[i]);
+		//stufffs
+		pageArray.push_back(PTemp);
+		//Obtaining the first record of this run and putting it into the vector record
+		Record *RTemp = new Record();
+		pageArray[i]->GetFirst(RTemp);
+		recs.push_back(RTemp);
+		//Offsets and skip updates
+		offUpdate.push_back(1);
+		skip.push_back(0);
+	}
+
+	cout << "Second phase is done initializing. Entering the while loop." << endl;
+	int mindex;
+	ComparisonEngine cmp;
+	int outputCounter =0;
+	while(true){
+		mindex = -1;
+		for(int i = 0; i< size; i++){ //Scan over our record vector to find the minimum
+			if(skip[i] == -1){ //If a run is dry, we skip it
+				continue;
+			}
+
+			if(mindex == -1){ //Take the first run that isn't dry and set it as the mindex
+				mindex = i;
+			}
+			else{
+				//cout << "Comparing the records at "<<mindex <<" and "<<i<<endl;
+				//cout << "The record at mindex is " <<recs[mindex] << endl;
+				//cout << "The record at i is " << recs[i] << endl;
+				if(cmp.Compare(recs[mindex],recs[i],&order) > 0){ //Test to see if the new record is smaller than the mindex
+				 	mindex = i;
+					//cout << "New Mindex found" << endl;
+				}
+			}
+		}
+		//Done with Mindex search
+		if(mindex == -1){ //If no mindex was found, there's no more runs to read from. Exit and finish.
+			break;
+		}
+		//Done with "Are we done yet" check, time to insert it into the pipe:
+		output->Insert(recs[mindex]);
+		//cout << "Have now outputted "<<++outputCounter<<" records"<<endl;
+		//Check to get new record from the corresponding page:
+		if(!pageArray[mindex]->GetFirst(recs[mindex])){ //No record was found
+			/*
+			Mental talking to myself time. I've got ~3 hours. FOCUS.
+			So
+			Right now, I want the next page in the mindex'ith run. (shut up morgan)
+			A get-page can fail upon 2 conditions:
+			1) The next page is outside the length of the file
+			2) The next page is inside the next run over.
+
+			The first can be resolved by making sure the request isn't going past f.GetLength()
+			The second has to be checked by comparing offsets[mindex]+offUpdate[mindex] and making sure that it is less than offsets[mindex+1]
+			*/
+			if((offsets[mindex]+offUpdate[mindex] < f.GetLength()-1) 
+				&& ((offsets[mindex]+offUpdate[mindex]) < offsets[mindex+1]))
+			{
+				//cout << "Updating page for run " << mindex << endl;
+				//cout << "Getting page at " << offsets[mindex]+offUpdate[mindex] << endl;
+				f.GetPage(pageArray[mindex], offsets[mindex]+offUpdate[mindex]);
+				//cout << "Going from offset " << offsets[mindex]+offUpdate[mindex] << " to offset " << offsets[mindex] + offUpdate[mindex]+1 << endl;
+				offUpdate[mindex]++;
+				pageArray[mindex]->GetFirst(recs[mindex]);
+			}
+			else{
+				cout << "Exhausted run " << mindex << "." << endl;
+			 	skip[mindex] = -1; //We've exhausted this run
+			}
+		}
+		//End getting new page statement
+	}
+
+	
+	
+}
+/*
+void BigQ::SecondPhasev2(){
 	//Data Structures
 	int size = offsets.size();
 	offsets.push_back(0);
@@ -300,10 +394,10 @@ void BigQ::SecondPhasev2(){
 		output->Insert(&recs[mindex]);
 		//At this point, we've found and inserted the minimum record into the output pipe
 
-		/*
+		
 		Here's a tricky part. How do I do the page updates?
 		Well, we have the offsets vector, and so we can check that offsets + offUpdate < f.Length(), and offsets + offUpdate < offsets[mindex+1]
-		*/
+		
 		if(!pageArray[mindex]->GetFirst(&recs[mindex])){ // The page we're attempting to read from is empty! =<
 			//We must replace it with a better page!
 			cout << "Run "<<mindex<<" is set to offset "<<offsets[mindex]+offUpdate[mindex]<<endl;
@@ -323,7 +417,7 @@ void BigQ::SecondPhasev2(){
 	}
 	
 	//f.Close();
-}
+}*/
 
 
 void BigQ::SecondPhase(){
