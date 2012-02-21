@@ -19,7 +19,8 @@ class BigQ {
 	OrderMaker order;
 	int runlen;
 	vector<int> offsets; //Vector that holds the offsets to the runs.
-
+	pthread_t worker;
+	char *tmpFile;
 public:
 
 	BigQ (Pipe &in, Pipe &out, OrderMaker &sortorder, int runlen);
@@ -27,7 +28,7 @@ public:
 	void FirstPhase();
 	void SecondPhase();
 	void SecondPhasev2();
-	static void WorkThread(void* args);
+	static void* WorkThread(void* args);
 };
 
 #endif

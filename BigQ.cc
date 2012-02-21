@@ -29,18 +29,47 @@ struct record_sorter {
 };
 BigQ :: BigQ (Pipe &in, Pipe &out, OrderMaker &sortorder, int runlen) 
 {
-	
-    // construct priority queue over sorted runs and dump sorted data 
+	//Set up the object's data 
 	this->input = &in;
 	this->output = &out;
 	this->order = sortorder;
 	this->runlen = runlen;
+	char* tmpFile = "/tmp/DBI/temprecs";
+	f.Open(0,tmpFile);
+	//And start working on the thread
+	pthread_create (&worker, NULL, WorkThread, (void *)this);
 	
-	
-	
-	//Now that all the sorted runs are set up, we can do the initial sort
+	/*//Now that all the sorted runs are set up, we can do the initial sort
 	cout << "BigQ is now entering First Phase." << endl;
 	FirstPhase();
+	cout << "BigQ has exited First Phase." <<endl;
+	//This has all the records writen out to a file.
+	cout<< "BigQ is now entering Second Phase." <<endl;
+	if(offsets.size() == 1){
+		cout << "Only one run. Outputting to pipe." << endl;
+		SecondPhase();
+	}
+	else{
+		cout << "More than one run. Performing more complex second phase." << endl;
+		SecondPhasev2();
+	}//
+	SecondPhase();
+	cout << "BigQ has exited Second Phase." <<endl;
+
+	// finally shut down the out pipe
+	output->ShutDown();*/
+}
+
+BigQ::~BigQ () {
+}
+
+void* BigQ::WorkThread(void *args){
+
+	BigQ *self = static_cast<BigQ*>(args);
+
+	//Now that all the sorted runs are set up, we can do the initial sort
+	cout << "BigQ is now entering First Phase." << endl;
+	self->FirstPhase();
 	cout << "BigQ has exited First Phase." <<endl;
 	//This has all the records writen out to a file.
 	cout<< "BigQ is now entering Second Phase." <<endl;
@@ -52,20 +81,12 @@ BigQ :: BigQ (Pipe &in, Pipe &out, OrderMaker &sortorder, int runlen)
 		cout << "More than one run. Performing more complex second phase." << endl;
 		SecondPhasev2();
 	}*/
-	SecondPhase();
+	self->SecondPhase();
 	cout << "BigQ has exited Second Phase." <<endl;
- 	// into the out pipe
 
-    // finally shut down the out pipe
-	output->ShutDown();
-}
-
-BigQ::~BigQ () {
-}
-
-void* BigQ::WorkThread(void *args){
-	char* tempFile = "/tmp/";
-
+	// finally shut down the out pipe
+	self->output->ShutDown();
+	self->f.Close(); //And exit our 
 }
 
 //This function holds the First Phase code of the project.
@@ -84,7 +105,7 @@ void BigQ::FirstPhase(){
 	int runPages = 0; //Number of pages in our current run. If it ever matches runlen, we stop the reading in to sort and output the sorted records to the pipe
 	
 	//Variables for writing out to file
-	f.Open(0,"/tmp/DBI/temprecs");
+	//f.Open(0,tmpFile);
 	int offset = 0; //Offset starts at 0 because File automaticaly thinks "offset+1" since first page is empty.
 	offsets.push_back(offset); //The first offset starts at 0, for run 1.
 	int n = 0; 
@@ -108,7 +129,7 @@ void BigQ::FirstPhase(){
 			{
 				//We've reached the number of pages allowed in a run, so we sort that shit.
 				
-				cout << "I am beginning to sort a run." << endl;
+				//cout << "I am beginning to sort a run." << endl;
 				std::sort(run.begin(),run.end(), record_sorter(this->order)); //Sort the run
 				//cout << "I have sorted a run." << endl;
 				
@@ -180,7 +201,7 @@ void BigQ::FirstPhase(){
 	p.EmptyItOut();//Empty out the page, since we're about to add a new record to it.
 	run.clear();
 	cout << " I wrote "<<offset <<" pages to file. " <<endl;
-	f.Close();
+	//f.Close();
 	//So at the end of this, f is our link to an opened file with all our runs in it. Now we need to enter phase 2
 }
 
@@ -233,7 +254,7 @@ void BigQ::SecondPhasev2(){
 	int skip[size]; 
 	
 	//Open the file
-	f.Open(1,"/tmp/DBI/temprecs");
+	//f.Open(1,tmpFile);
 	
 	//Initialization 
 	for(int i = 0; i < size;i++){
@@ -301,12 +322,12 @@ void BigQ::SecondPhasev2(){
 
 	}
 	
-	f.Close();
+	//f.Close();
 }
 
 
 void BigQ::SecondPhase(){
-	f.Open(1,"/tmp/DBI/temprecs");
+	//f.Open(1,tmpFile);
 	Page p;
 	Record temp;
 	int pages = 0;
@@ -321,5 +342,5 @@ void BigQ::SecondPhase(){
 		}
 	}
 	cout << "Number of pages written out was " << pages << endl;
-	f.Close();
+	//f.Close();
 }
