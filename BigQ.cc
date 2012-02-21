@@ -246,7 +246,7 @@ When a page empties, we have to refill it. So, we grab the page from the file us
 
 void BigQ::SecondPhasev2(){
 	int size = offsets.size();
-	//offsets.push_back(0);
+	offsets.push_back(f.GetLength());
 	vector<Page *> pageArray;
 	pageArray.reserve(size);
 	vector<Record *> recs;
@@ -255,6 +255,7 @@ void BigQ::SecondPhasev2(){
 	offUpdate.reserve(size);
 	vector<int> skip;
 	skip.reserve(size);
+	int totOffset;
 	
 	//Initialization
 	for(int i = 0; i < size; i++){
@@ -304,30 +305,26 @@ void BigQ::SecondPhasev2(){
 		output->Insert(recs[mindex]);
 		//cout << "Have now outputted "<<++outputCounter<<" records"<<endl;
 		//Check to get new record from the corresponding page:
-		if(!pageArray[mindex]->GetFirst(recs[mindex])){ //No record was found
-			/*
-			Mental talking to myself time. I've got ~3 hours. FOCUS.
-			So
-			Right now, I want the next page in the mindex'ith run. (shut up morgan)
-			A get-page can fail upon 2 conditions:
-			1) The next page is outside the length of the file
-			2) The next page is inside the next run over.
 
-			The first can be resolved by making sure the request isn't going past f.GetLength()
-			The second has to be checked by comparing offsets[mindex]+offUpdate[mindex] and making sure that it is less than offsets[mindex+1]
-			*/
-			if((offsets[mindex]+offUpdate[mindex] < f.GetLength()-1) 
-				&& ((offsets[mindex]+offUpdate[mindex]) < offsets[mindex+1]))
+		if(!pageArray[mindex]->GetFirst(recs[mindex])){ //No record was found
+			
+			totOffset = offsets[mindex]+offUpdate[mindex];
+			cout << "Total offset was "<<totOffset<<endl;
+			cout << "F length is " << f.GetLength() << endl;
+			cout << "Offsets mindex is " << offsets[mindex+1] << endl;
+			if((totOffset < f.GetLength()-1) 
+				&& ((totOffset) < offsets[mindex+1]))
 			{
-				//cout << "Updating page for run " << mindex << endl;
-				//cout << "Getting page at " << offsets[mindex]+offUpdate[mindex] << endl;
+				cout << "Updating page for run " << mindex << endl;
+				cout << "Getting page at " << totOffset << endl;
 				f.GetPage(pageArray[mindex], offsets[mindex]+offUpdate[mindex]);
-				//cout << "Going from offset " << offsets[mindex]+offUpdate[mindex] << " to offset " << offsets[mindex] + offUpdate[mindex]+1 << endl;
+				cout << "Going from offset " << totOffset << " to offset " << totOffset+1 << endl;
 				offUpdate[mindex]++;
 				pageArray[mindex]->GetFirst(recs[mindex]);
 			}
 			else{
 				cout << "Exhausted run " << mindex << "." << endl;
+				
 			 	skip[mindex] = -1; //We've exhausted this run
 			}
 		}
