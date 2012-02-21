@@ -125,7 +125,7 @@ void DBFile::Add (Record &rec) {
 //But if we get the last page, does it zero it out to be nothing? MUST CHECK!
 
 	int page = f.GetLength()-2;
-	cout << "Page is "<<page<<endl;
+	//cout << "Page is "<<page<<endl;
 //	cout << "GetLength is " << f.GetLength() << endl;
 	if(page < 0){ //File has nothing in it (i.e. GetLength returned 0, so page = -1)
 		p.Append(&rec); //If the file has nothing in it, neither does the page, so it's a clean append.
