@@ -16,7 +16,7 @@ class BigQ {
 	File f; //Used to write stuff out to file
 	Pipe *input; //Input pipe, used in thread
 	Pipe *output; //Output pipe, used in thread
-	OrderMaker order;
+	OrderMaker &order;
 	int runlen;
 	vector<int> offsets; //Vector that holds the offsets to the runs.
 	pthread_t worker;

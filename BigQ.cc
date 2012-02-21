@@ -4,11 +4,11 @@
 
 //This struct acts as a sorter for when I use std::sort. Means I should be very efficient with my sorting. Or something?
 struct record_sorter {
-	OrderMaker sorter;
+	OrderMaker& sorter;
   //Need a function that will act as constructor
- 	record_sorter(OrderMaker &sortorder)
+ 	record_sorter(OrderMaker &sortorder):sorter(sortorder)
  	{
-		sorter = sortorder;
+		
 	}
   //Next, the function that works as the sort function
   	bool operator() (Record* rec1, Record* rec2)
@@ -27,12 +27,12 @@ struct record_sorter {
 	}*/
 	
 };
-BigQ :: BigQ (Pipe &in, Pipe &out, OrderMaker &sortorder, int runlen) 
+BigQ :: BigQ (Pipe &in, Pipe &out, OrderMaker &sortorder, int runlen):order(sortorder)
 {
 	//Set up the object's data 
 	this->input = &in;
 	this->output = &out;
-	this->order = sortorder;
+	//this->order = sortorder;
 	this->runlen = runlen;
 	char* tmpFile = "/tmp/DBI/temprecs";
 	f.Open(0,tmpFile);
@@ -81,7 +81,7 @@ void* BigQ::WorkThread(void *args){
 		cout << "More than one run. Performing more complex second phase." << endl;
 		SecondPhasev2();
 	}*/
-	self->SecondPhase();
+	self->SecondPhasev2();
 	cout << "BigQ has exited Second Phase." <<endl;
 
 	// finally shut down the out pipe
@@ -130,7 +130,7 @@ void BigQ::FirstPhase(){
 				//We've reached the number of pages allowed in a run, so we sort that shit.
 				
 				//cout << "I am beginning to sort a run." << endl;
-				std::sort(run.begin(),run.end(), record_sorter(this->order)); //Sort the run
+				std::sort(run.begin(),run.end(), record_sorter(order)); //Sort the run
 				//cout << "I have sorted a run." << endl;
 				
 				
@@ -176,7 +176,7 @@ void BigQ::FirstPhase(){
 			run.push_back(vecRec);
 	}
 	//cout << "I am sorting the last run." <<endl;
-	std::sort(run.begin(),run.end(), record_sorter(this->order));
+	std::sort(run.begin(),run.end(), record_sorter(order));
 	//cout << "I have sorted the last run." << endl;
 	//cout << "Run size is " << run.size() << endl;
 	
@@ -309,7 +309,7 @@ void BigQ::SecondPhasev2(){
 			cout << "Run "<<mindex<<" is set to offset "<<offsets[mindex]+offUpdate[mindex]<<endl;
 			cout << "Offsets size is "<<offsets.size() << endl;
 			cout << "Offsets at mindex + 1 is "<< offsets[mindex+1] << endl;
-			if(offsets[mindex]+offUpdate[mindex] < offsets.size() && offsets[mindex]+offUpdate[mindex] < offsets[mindex+1]){
+			if(offsets[mindex]+offUpdate[mindex] < f.GetLength() && offsets[mindex]+offUpdate[mindex] < offsets[mindex+1]){
 				f.GetPage(pageArray[mindex], offsets[mindex]+offUpdate[mindex]);
 				offUpdate[mindex]++;
 			}

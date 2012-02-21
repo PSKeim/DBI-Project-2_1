@@ -28,58 +28,81 @@ void *producer (void *arg) {
 	cout << " producer: inserted " << counter << " recs into the pipe\n";
 }
 
-void *consumer (void *arg) {
-	
-	testutil *t = (testutil *) arg;
+void * consumer (void * arg) {
+  cout << "consumer started" << endl;
+  testutil * t = (testutil *) arg; // see if reinterpret_cast works here later
 
-	ComparisonEngine ceng;
+  ComparisonEngine ceng;
 
-	DBFile dbfile;
-	char outfile[100];
+  DBFile dbfile;
+  char outfile[100];
 
-	if (t->write) {
-		sprintf (outfile, "%s.bigq", rel->path ());
-		dbfile.Create (outfile, heap, NULL);
-	}
+  if (t->write) {
+    sprintf (outfile, "%s.bigq", rel->path ());
+    dbfile.Create (outfile, heap, NULL);
+  }
 
-	int err = 0;
-	int i = 0;
+  int err = 0;
+  int i = 0;
+  int counter = 0;
+  // the idea here, is two different things.
+  // last will hold whatever record that will end up being the last record we see
+  //
+  // double buffering setup
+  Record rec[2];
+  Record *last = NULL, *prev = NULL; // last and prev index into the buffer.
 
-	Record rec[2];
-	Record *last = NULL, *prev = NULL;
+  while (t->pipe->Remove (&rec[i%2])) { // get next guy.
+    prev = last;
+    last = &rec[i%2];
 
-	while (t->pipe->Remove (&rec[i%2])) {
-		prev = last;
-		last = &rec[i%2];
+    counter += 1;
+    if (counter%100000 == 0) {
+      cerr << " consumer: " << counter << endl;
+    }
 
-		if (prev && last) {
-			if (ceng.Compare (prev, last, t->order) == 1) {
-				err++;
-			}
-			if (t->write) {
-				dbfile.Add (*prev);
-			}
-		}
-		if (t->print) {
-			last->Print (rel->schema ());
-		}
-		i++;
-	}
+    // the conditional works at the beginning.
+    // if there is at least one thing in the the pipe
+    // prev is null, and last is the record we just pulled out
+    // so we don't have two things to compare and thus skip compare
+    // at the end, we never get here.
+    // so really, we just need to make sure that prev is not NULL.
+    if (NULL != prev && NULL != last) { // make sure neither is NULL, so that we can follow the pointers and compare them. works at both beginning and end.
+      if (1 == ceng.Compare (prev, last, t->order)) { // wrong order coming out of the "sorted order" pipe
+        
+        cout << endl << endl << endl << "It was said that " << endl << endl << endl;
+        prev->Print (rel->schema ());
+        cout << "was smaller than" << endl;
+        last->Print (rel->schema ());
+        cout << counter << endl;
+        err++;
+      }
+      if (t->write) {
+        dbfile.Add (*prev);
+      }
+    }
+    if (t->print) {
+      last->Print (rel->schema ());
+    }
+    i++;
+  }
 
-	cout << " consumer: removed " << i << " recs from the pipe\n";
+  cout << " consumer: removed " << i << " recs from the pipe\n";
 
-	if (t->write) {
-		if (last) {
-			dbfile.Add (*last);
-		}
-		cerr << " consumer: recs removed written out as heap DBFile at " << outfile << endl;
-		dbfile.Close ();
-	}
-	cerr << " consumer: " << (i - err) << " recs out of " << i << " recs in sorted order \n";
-	if (err) {
-		cerr << " consumer: " <<  err << " recs failed sorted order test \n" << endl;
-	}
+  if (t->write) {
+    if (last) {
+      dbfile.Add (*last);
+    }
+    cerr << " consumer: recs removed written out as heap DBFile at " << outfile << endl;
+    dbfile.Close ();
+  }
+  cerr << " consumer: " << (i - err) << " recs out of " << i << " recs in sorted order \n";
+  if (err) {
+    cerr << " consumer: " << err << " recs failed sorted order test \n" << endl;
+  }
 }
+
+
 
 
 void test1 (int option, int runlen) {
